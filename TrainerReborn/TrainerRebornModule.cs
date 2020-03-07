@@ -26,8 +26,11 @@ namespace TrainerReborn {
         public const string SAVE_BUTTON_LOC_ID = "TRAINER_REBORN_SAVE_BUTTON";
         public const string SPEED_MULT_BUTTON_LOC_ID = "TRAINER_REBORN_SPEED_MULT_BUTTON";
         public const string DEBUG_TEXT_COLOR_BUTTON_LOC_ID = "TRAINER_REBORN_DEBUG_TEXT_COLOR_BUTTON";
+        public const string SWITCH_DIMENSION_TO_8_LOC_ID = "TRAINER_REBORN_SWITCH_DIMENSION_TO_8";
+        public const string SWITCH_DIMENSION_TO_16_LOC_ID = "TRAINER_REBORN_SWITCH_DIMENSION_TO_16";
         public const string TP_BUTTON_LOC_ID = "TRAINER_REBORN_TP_BUTTON";
         public const string GET_ITEM_BUTTON_LOC_ID = "TRAINER_REBORN_GET_ITEM_BUTTON";
+
         public const string TP_LEVEL_ENTRY_LOC_ID = "TRAINER_REBORN_TP_LEVEL_ENTRY";
         public const string TP_LOCATION_ENTRY_LOC_ID = "TRAINER_REBORN_TP_LOCATION_ENTRY";
         public const string ITEM_NAME_ENTRY_LOC_ID = "TRAINER_REBORN_ITEM_NAME_ENTRY";
@@ -76,6 +79,7 @@ namespace TrainerReborn {
         ToggleButtonInfo secondQuestButton;
         SubMenuButtonInfo reloadButton;
         SubMenuButtonInfo saveButton;
+        SubMenuButtonInfo switchDimensionButton;
         TextEntryButtonInfo speedMultButton;
         TextEntryButtonInfo debugTextColorButton;
         TextEntryButtonInfo tpButton;
@@ -109,6 +113,7 @@ namespace TrainerReborn {
             getItemButton = Courier.UI.RegisterTextEntryModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(GET_ITEM_BUTTON_LOC_ID), OnEnterItemToGive, 16, () => Manager<LocalizationManager>.Instance.GetText(ITEM_NAME_ENTRY_LOC_ID), () => "", CharsetFlags.Letter);
             reloadButton = Courier.UI.RegisterSubMenuModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(RELOAD_BUTTON_LOC_ID), OnReloadButton);
             saveButton = Courier.UI.RegisterSubMenuModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(SAVE_BUTTON_LOC_ID), OnSaveButton);
+            switchDimensionButton = Courier.UI.RegisterSubMenuModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(Manager<DimensionManager>.Instance?.CurrentDimension == EBits.BITS_8 ? SWITCH_DIMENSION_TO_16_LOC_ID : SWITCH_DIMENSION_TO_8_LOC_ID), OnSwitchDimensionButton);
 
             // Disable certain features until we enter the level
             secondQuestButton.IsEnabled += () => Manager<LevelManager>.Instance.GetCurrentLevelEnum() != ELevel.NONE;
@@ -116,6 +121,7 @@ namespace TrainerReborn {
             getItemButton.IsEnabled = () => Manager<LevelManager>.Instance.GetCurrentLevelEnum() != ELevel.NONE;
             reloadButton.IsEnabled = () => Manager<LevelManager>.Instance.GetCurrentLevelEnum() != ELevel.NONE;
             saveButton.IsEnabled = () => Manager<LevelManager>.Instance.GetCurrentLevelEnum() != ELevel.NONE;
+            switchDimensionButton.IsEnabled = () => Manager<LevelManager>.Instance.GetCurrentLevelEnum() != ELevel.NONE;
 
             if (Dicts.tpDict == null) {
                 Dicts.InitTpDict();
@@ -298,15 +304,6 @@ namespace TrainerReborn {
         bool OnEnterTeleportLocation(string level, string location) {
             if(int.TryParse(location, out int tpLoc) && Dicts.tpDict[level].TryGetValue(tpLoc, out float[] loadPos)) {
                 EBits dimension = Manager<DimensionManager>.Instance.currentDimension;
-                // TODO tp to other dimension
-                //if (array2.Length == 4) {
-                //    if (array2[3].Equals("8")) {
-                //        dimension = EBits.BITS_8;
-                //    }
-                //    if (array2[3].Equals("16")) {
-                //        dimension = EBits.BITS_16;
-                //    }
-                //}
                 Manager<PauseManager>.Instance.Resume();
                 Manager<UIManager>.Instance.GetView<OptionScreen>().Close(false);
                 string levelName = level.Equals("Surf", StringComparison.InvariantCultureIgnoreCase) ? Dicts.levelDict[level] : (Dicts.levelDict[level] + "_Build");
@@ -321,6 +318,12 @@ namespace TrainerReborn {
             }
             Console.WriteLine("Teleport Location set to an invalid value");
             return false;
+        }
+
+        void OnSwitchDimensionButton() {
+            Manager<DimensionManager>.Instance.SetDimension(Manager<DimensionManager>.Instance.CurrentDimension == EBits.BITS_8 ? EBits.BITS_16 : EBits.BITS_8);
+            switchDimensionButton.nameTextMesh.text = switchDimensionButton.GetText();
+            Console.WriteLine("Switched to " + Manager<DimensionManager>.Instance.CurrentDimension);
         }
 
         // When they enter the name of the item to give
