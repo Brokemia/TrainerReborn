@@ -116,7 +116,7 @@ namespace TrainerReborn {
             switchDimensionButton = Courier.UI.RegisterSubMenuModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(Manager<DimensionManager>.Instance?.CurrentDimension == EBits.BITS_8 ? SWITCH_DIMENSION_TO_16_LOC_ID : SWITCH_DIMENSION_TO_8_LOC_ID), OnSwitchDimensionButton);
 
             // Disable certain features until we enter the level
-            secondQuestButton.IsEnabled += () => Manager<LevelManager>.Instance.GetCurrentLevelEnum() != ELevel.NONE;
+            secondQuestButton.IsEnabled = () => Manager<LevelManager>.Instance.GetCurrentLevelEnum() != ELevel.NONE;
             tpButton.IsEnabled = () => Manager<LevelManager>.Instance.GetCurrentLevelEnum() != ELevel.NONE;
             getItemButton.IsEnabled = () => Manager<LevelManager>.Instance.GetCurrentLevelEnum() != ELevel.NONE;
             reloadButton.IsEnabled = () => Manager<LevelManager>.Instance.GetCurrentLevelEnum() != ELevel.NONE;
@@ -534,9 +534,9 @@ namespace TrainerReborn {
                     bossState,
                     Manager<SearingCragsBossFightManager>.Instance.colossusesInstance.stateMachine.CurrentState.ToString().Split(' ', '(')[0],
                     " C: ",
-                    Manager<SearingCragsBossFightManager>.Instance.colosInstance.stateMachine.CurrentState.ToString().Split(' ', '(')[0],
+                    Manager<SearingCragsBossFightManager>.Instance.colosInstance.GetCurrentState().ToString().Split(' ', '(')[0],
                     " S: ",
-                    Manager<SearingCragsBossFightManager>.Instance.susesInstance.stateMachine.CurrentState.ToString().Split(' ', '(')[0]
+                    Manager<SearingCragsBossFightManager>.Instance.susesInstance.GetCurrentState().ToString().Split(' ', '(')[0]
                     });
                     if (Manager<SearingCragsBossFightManager>.Instance.colosInstance != null && Manager<SearingCragsBossFightManager>.Instance.susesInstance != null) {
                         bossHealth = bossHealth + "C: " + Manager<SearingCragsBossFightManager>.Instance.colosInstance.CurrentHP + "/" + Manager<SearingCragsBossFightManager>.Instance.colosInstance.maxHP + " S: " + Manager<SearingCragsBossFightManager>.Instance.susesInstance.CurrentHP + "/" + Manager<SearingCragsBossFightManager>.Instance.susesInstance.maxHP;
