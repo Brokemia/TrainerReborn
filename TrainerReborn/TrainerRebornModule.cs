@@ -17,6 +17,7 @@ namespace TrainerReborn {
         public const string INF_HEALTH_BUTTON_LOC_ID = "TRAINER_REBORN_INF_HEALTH_BUTTON";
         public const string INF_SHURIKEN_BUTTON_LOC_ID = "TRAINER_REBORN_INF_SHURIKEN_BUTTON";
         public const string INF_JUMP_BUTTON_LOC_ID = "TRAINER_REBORN_INF_JUMP_BUTTON";
+        public const string NO_KNOCKBACK_BUTTON_LOC_ID = "TRAINER_REBORN_NO_KNOCKBACK_BUTTON";
         public const string NO_BOUNDS_BUTTON_LOC_ID = "TRAINER_REBORN_NO_BOUNDS_BUTTON";
         public const string DEBUG_POS_BUTTON_LOC_ID = "TRAINER_REBORN_DEBUG_POS_BUTTON";
         public const string DEBUG_BOSS_BUTTON_LOC_ID = "TRAINER_REBORN_DEBUG_BOSS_BUTTON";
@@ -37,12 +38,15 @@ namespace TrainerReborn {
         public const string ITEM_NUMBER_ENTRY_LOC_ID = "TRAINER_REBORN_ITEM_NUMBER_ENTRY";
 
         public const string POS_DEBUG_TEXT_LOC_ID = "TRAINER_REBORN_POS_DEBUG_TEXT";
+        public const string NO_KNOCKBACK_DEBUG_TEXT_LOC_ID = "TRAINER_REBORN_NO_KNOCKBACK_DEBUG_TEXT";
         public const string CAMERA_UNLOCKED_DEBUG_TEXT_LOC_ID = "TRAINER_REBORN_CAMERA_UNLOCKED_DEBUG_TEXT";
         public const string NO_COLLISIONS_DEBUG_TEXT_LOC_ID = "TRAINER_REBORN_NO_COLLISIONS_DEBUG_TEXT";
         public const string INF_SHURIKEN_DEBUG_TEXT_LOC_ID = "TRAINER_REBORN_INF_SHURIKEN_DEBUG_TEXT";
         public const string INF_HEALTH_DEBUG_TEXT_LOC_ID = "TRAINER_REBORN_INF_HEALTH_DEBUG_TEXT";
         public const string INF_JUMP_DEBUG_TEXT_LOC_ID = "TRAINER_REBORN_INF_JUMP_DEBUG_TEXT";
         public const string SPEED_DEBUG_TEXT_LOC_ID = "TRAINER_REBORN_SPEED_DEBUG_TEXT";
+
+        public bool noKnockback;
 
         public bool noBounds;
 
@@ -68,11 +72,12 @@ namespace TrainerReborn {
         
         private static MethodInfo get_PlayerShurikensInfo = typeof(PlayerManager).GetProperty("PlayerShurikens", BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetProperty).GetGetMethod();
         private static MethodInfo get_PlayerShurikensHookInfo = typeof(TrainerRebornModule).GetMethod(nameof(PlayerManager_get_PlayerShurikens), BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod);
-
+        
         ToggleButtonInfo infHealthButton;
         ToggleButtonInfo infShurikenButton;
         ToggleButtonInfo infJumpButton;
         ToggleButtonInfo noBoundsButton;
+        ToggleButtonInfo noKnockbackButton;
         ToggleButtonInfo debugPosButton;
         ToggleButtonInfo debugBossButton;
         ToggleButtonInfo toggleCollisionsButton;
@@ -85,23 +90,38 @@ namespace TrainerReborn {
         TextEntryButtonInfo tpButton;
         TextEntryButtonInfo getItemButton;
 
+        private bool receivingHit;
+
         public override void Load() {
             On.InGameHud.OnGUI += InGameHud_OnGUI;
             On.PlayerController.CanJump += PlayerController_CanJump;
             On.PlayerController.Awake += PlayerController_Awake;
+            On.PlayerController.ReceiveHit += PlayerController_ReceiveHit;
 #pragma warning disable RECS0026 // Possible unassigned object created by 'new'
             new Hook(get_PlayerShurikensInfo, get_PlayerShurikensHookInfo, this);
             // Stuff that doesn't always call orig(self)
-            using (new DetourContext("TrainerReborn") {
+            using (new DetourContext("TrainerRebornLast") {
                 Before = { "*" }
             }) {
                 On.PlayerController.Damage += PlayerController_Damage;
                 On.RetroCamera.SnapPositionToCameraBounds += RetroCamera_SnapPositionToCameraBounds;
             }
 
+            // Stuff that should always go first
+            using (new DetourContext("TrainerRebornFirst") {
+                After = { "*" }
+            }) {
+                On.PlayerController.CancelGraplou += PlayerController_CancelGraplou;
+                On.PlayerController.CancelJumpCoroutine += PlayerController_CancelJumpCoroutine;
+                On.PlayerKnockbackState.StateEnter += PlayerKnockbackState_StateEnter;
+                On.PlayerKnockbackState.StateExecute += PlayerKnockbackState_StateExecute;
+                On.PlayerKnockbackState.StateExit += PlayerKnockbackState_StateExit;
+            }
+
             infHealthButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(INF_HEALTH_BUTTON_LOC_ID), OnInfHealth, (b) => infHealth);
             infShurikenButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(INF_SHURIKEN_BUTTON_LOC_ID), OnInfShuriken, (b) => infShuriken);
             infJumpButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(INF_JUMP_BUTTON_LOC_ID), OnInfJump, (b) => infJump);
+            noKnockbackButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(NO_KNOCKBACK_BUTTON_LOC_ID), OnNoKnockback, (b) => noKnockback);
             noBoundsButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(NO_BOUNDS_BUTTON_LOC_ID), OnNoBounds, (b) => noBounds);
             debugPosButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(DEBUG_POS_BUTTON_LOC_ID), OnDebugPos, (b) => debugPos);
             debugBossButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(DEBUG_BOSS_BUTTON_LOC_ID), OnDebugBoss, (b) => debugBoss);
@@ -172,6 +192,12 @@ namespace TrainerReborn {
             infJump = !infJump;
             infJumpButton.UpdateStateText();
             Console.WriteLine("Infinite Jumps: " + infJump);
+        }
+
+        void OnNoKnockback() {
+            noKnockback = !noKnockback;
+            noKnockbackButton.UpdateStateText();
+            Console.WriteLine("No Knockback: " + noKnockback);
         }
 
         void OnNoBounds() {
@@ -411,6 +437,58 @@ namespace TrainerReborn {
             }
         }
 
+        void PlayerController_ReceiveHit(On.PlayerController.orig_ReceiveHit orig, PlayerController self, HitData hitData) {
+            if(noKnockback) {
+                int cloudstepCount = self.CloudStepCount;
+                bool airJumpAvailable = self.AirJumpAvailable;
+                int lookDir = self.LookDirection;
+                receivingHit = true;
+                orig(self, hitData);
+                self.CloudStepCount = cloudstepCount;
+                self.AirJumpAvailable = airJumpAvailable;
+                self.SetLookDirection(lookDir);
+                receivingHit = false;
+                if (self.StateMachine.CurrentState is PlayerKnockbackState) {
+                    if (self.IsCompletelyInWater()) {
+                        self.StateMachine.SetState<PlayerInWaterState>();
+                    } else {
+                        self.StateMachine.SetState<PlayerDefaultState>();
+                    }
+                }
+            } else {
+                orig(self, hitData);
+            }
+        }
+
+        void PlayerController_CancelGraplou(On.PlayerController.orig_CancelGraplou orig, PlayerController self, bool stopCharging) {
+            if(!noKnockback || !receivingHit) {
+                orig(self, stopCharging);
+            }
+        }
+
+        void PlayerController_CancelJumpCoroutine(On.PlayerController.orig_CancelJumpCoroutine orig, PlayerController self) {
+            if (!noKnockback || !receivingHit) {
+                orig(self);
+            }
+        }
+
+        void PlayerKnockbackState_StateEnter(On.PlayerKnockbackState.orig_StateEnter orig, PlayerKnockbackState self, StateMachine stateMachine) {
+            if (!noKnockback || !receivingHit) {
+                orig(self, stateMachine);
+            }
+        }
+
+        void PlayerKnockbackState_StateExecute(On.PlayerKnockbackState.orig_StateExecute orig, PlayerKnockbackState self) {
+            if (!noKnockback || !receivingHit) {
+                orig(self);
+            }
+        }
+
+        void PlayerKnockbackState_StateExit(On.PlayerKnockbackState.orig_StateExit orig, PlayerKnockbackState self) {
+            if (!noKnockback) {
+                orig(self);
+            }
+        }
 
         bool PlayerController_CanJump(On.PlayerController.orig_CanJump orig, PlayerController self) {
             if (self.IsDucking && !self.CanUnduck()) {
@@ -421,7 +499,6 @@ namespace TrainerReborn {
             }
             return orig(self);
         }
-
 
         public void InGameHud_OnGUI(On.InGameHud.orig_OnGUI orig, InGameHud self) {
             orig(self);
@@ -448,13 +525,16 @@ namespace TrainerReborn {
             debugText16.text += debug;
         }
 
-        private void UpdateDebugText() { // TODO
+        private void UpdateDebugText() {
             if (debugPos) {
                 Vector2 playerPos = Manager<PlayerManager>.Instance.Player.transform.position;
                 string posText = Manager<LocalizationManager>.Instance.GetText(POS_DEBUG_TEXT_LOC_ID);
                 posText = posText.Replace("[posX]", playerPos.x.ToString("F1"));
                 posText = posText.Replace("[posY]", playerPos.y.ToString("F1"));
                 AddToDebug("\r\n" + posText);
+            }
+            if (noKnockback) {
+                AddToDebug("\r\n" + Manager<LocalizationManager>.Instance.GetText(NO_KNOCKBACK_DEBUG_TEXT_LOC_ID));
             }
             if (noBounds) {
                 AddToDebug("\r\n" + Manager<LocalizationManager>.Instance.GetText(CAMERA_UNLOCKED_DEBUG_TEXT_LOC_ID));
