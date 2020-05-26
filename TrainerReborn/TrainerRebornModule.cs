@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -6,6 +7,7 @@ using Mod.Courier;
 using Mod.Courier.Module;
 using Mod.Courier.UI;
 using MonoMod.RuntimeDetour;
+using MonoMod.Utils;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -31,6 +33,7 @@ namespace TrainerReborn {
         public const string SWITCH_DIMENSION_TO_16_LOC_ID = "TRAINER_REBORN_SWITCH_DIMENSION_TO_16";
         public const string TP_BUTTON_LOC_ID = "TRAINER_REBORN_TP_BUTTON";
         public const string GET_ITEM_BUTTON_LOC_ID = "TRAINER_REBORN_GET_ITEM_BUTTON";
+        public const string SHOW_HITBOXES_BUTTON_LOC_ID = "TRAINER_REBORN_SHOW_HITBOXES_BUTTON";
 
         public const string TP_LEVEL_ENTRY_LOC_ID = "TRAINER_REBORN_TP_LEVEL_ENTRY";
         public const string TP_LOCATION_ENTRY_LOC_ID = "TRAINER_REBORN_TP_LOCATION_ENTRY";
@@ -62,6 +65,8 @@ namespace TrainerReborn {
 
         public bool collisionsDisabled;
 
+        public bool hitboxesShown;
+
         public float speedMult = 1;
 
         public Color debugTextColor = Color.white;
@@ -82,6 +87,7 @@ namespace TrainerReborn {
         ToggleButtonInfo debugBossButton;
         ToggleButtonInfo toggleCollisionsButton;
         ToggleButtonInfo secondQuestButton;
+        ToggleButtonInfo showHitboxesButton;
         SubMenuButtonInfo reloadButton;
         SubMenuButtonInfo saveButton;
         SubMenuButtonInfo switchDimensionButton;
@@ -97,6 +103,8 @@ namespace TrainerReborn {
             On.PlayerController.CanJump += PlayerController_CanJump;
             On.PlayerController.Awake += PlayerController_Awake;
             On.PlayerController.ReceiveHit += PlayerController_ReceiveHit;
+            On.Hittable.Awake += Hittable_Awake;
+            On.PlayerController.Update += PlayerController_Update;
 #pragma warning disable RECS0026 // Possible unassigned object created by 'new'
             new Hook(get_PlayerShurikensInfo, get_PlayerShurikensHookInfo, this);
             // Stuff that doesn't always call orig(self)
@@ -127,6 +135,7 @@ namespace TrainerReborn {
             debugBossButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(DEBUG_BOSS_BUTTON_LOC_ID), OnDebugBoss, (b) => debugBoss);
             toggleCollisionsButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(TOGGLE_COLLISIONS_BUTTON_LOC_ID), OnToggleCollisions, (b) => !collisionsDisabled);
             secondQuestButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(SECOND_QUEST_BUTTON_LOC_ID), OnSecondQuest, (b) => Manager<ProgressionManager>.Instance.secondQuest);
+            showHitboxesButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(SHOW_HITBOXES_BUTTON_LOC_ID), OnShowHitboxes, (b) => hitboxesShown);
             speedMultButton = Courier.UI.RegisterTextEntryModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(SPEED_MULT_BUTTON_LOC_ID), OnEnterSpeed, 4, null, () => Manager<PlayerManager>.Instance?.Player?.RunSpeedMultiplier.ToString() ?? "" + speedMult, CharsetFlags.Number | CharsetFlags.Dot);
             debugTextColorButton = Courier.UI.RegisterTextEntryModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(DEBUG_TEXT_COLOR_BUTTON_LOC_ID), OnEnterDebugTextColor, 7, null, () => "", CharsetFlags.Letter);
             tpButton = Courier.UI.RegisterTextEntryModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(TP_BUTTON_LOC_ID), OnEnterTeleportLevel, 17, () => Manager<LocalizationManager>.Instance.GetText(TP_LEVEL_ENTRY_LOC_ID), () => GetLevelNameFromEnum(Manager<LevelManager>.Instance?.GetCurrentLevelEnum() ?? ELevel.NONE), CharsetFlags.Letter);
@@ -216,6 +225,12 @@ namespace TrainerReborn {
             debugBoss = !debugBoss;
             debugBossButton.UpdateStateText();
             Console.WriteLine("Boss Debug Display: " + debugBoss);
+        }
+
+        void OnShowHitboxes() {
+            hitboxesShown = !hitboxesShown;
+            showHitboxesButton.UpdateStateText();
+            Console.WriteLine("Hitboxes Shown: " + hitboxesShown);
         }
 
         void OnReloadButton() {
@@ -500,6 +515,71 @@ namespace TrainerReborn {
             return orig(self);
         }
 
+        List<Hittable> hitboxList = new List<Hittable>();
+
+        void PlayerController_Update(On.PlayerController.orig_Update orig, PlayerController self) {
+            orig(self);
+            foreach(Hittable hittable in hitboxList) {
+                try {
+                    self.StartCoroutine(ShowHitboxesRoutine(hittable, hittable.GetComponent<BoxCollider2D>()));
+                } catch (Exception) { }
+            }
+            hitboxList.Clear();
+        }
+
+        void Hittable_Awake(On.Hittable.orig_Awake orig, Hittable self) {
+            orig(self);
+            hitboxList.Add(self);
+        }
+
+        IEnumerator ShowHitboxesRoutine(Hittable hittable, BoxCollider2D collider) {
+            Rect rect = collider.GetRect();
+            LineRenderer[] lines = new LineRenderer[4];
+            for(int i = 0; i < 4; i++) {
+                GameObject lineGo = new GameObject();
+                lines[i] = lineGo.AddComponent<LineRenderer>();
+                lines[i].material = new Material(Shader.Find("Sprites/Default"));
+                lines[i].startColor = Color.red;
+                lines[i].endColor = Color.red;
+                lines[i].startWidth = .1f;
+                lines[i].endWidth = .1f;
+            }
+            // This affects the z-value
+            // I tried making it larger since it's still behind certain things, but that just made it invisible
+            Vector3 offset = new Vector3(0, 0, -39.7f);
+            lines[0].SetPosition(0, (Vector3)rect.position + offset);
+            lines[0].SetPosition(1, (Vector3)(rect.position + new Vector2(rect.width, 0)) + offset);
+            lines[1].SetPosition(0, (Vector3)(rect.position + new Vector2(rect.width, 0)) + offset);
+            lines[1].SetPosition(1, (Vector3)(rect.position + rect.size) + offset);
+            lines[2].SetPosition(0, (Vector3)(rect.position + rect.size) + offset);
+            lines[2].SetPosition(1, (Vector3)(rect.position + new Vector2(0, rect.height)) + offset);
+            lines[3].SetPosition(0, (Vector3)(rect.position) + offset);
+            lines[3].SetPosition(1, (Vector3)(rect.position + new Vector2(0, rect.height)) + offset);
+            while (true) {
+                if (collider.isActiveAndEnabled) {
+                    rect = collider.GetRect();
+                    lines[0].SetPosition(0, (Vector3)rect.position + offset);
+                    lines[0].SetPosition(1, (Vector3)(rect.position + new Vector2(rect.width, 0)) + offset);
+                    lines[1].SetPosition(0, (Vector3)(rect.position + new Vector2(rect.width, 0)) + offset);
+                    lines[1].SetPosition(1, (Vector3)(rect.position + rect.size) + offset);
+                    lines[2].SetPosition(0, (Vector3)(rect.position + rect.size) + offset);
+                    lines[2].SetPosition(1, (Vector3)(rect.position + new Vector2(0, rect.height)) + offset);
+                    lines[3].SetPosition(0, (Vector3)(rect.position) + offset);
+                    lines[3].SetPosition(1, (Vector3)(rect.position + new Vector2(0, rect.height)) + offset);
+                }
+                foreach (LineRenderer lr in lines) {
+                    lr.gameObject.SetActive(false);
+                }
+                if (hitboxesShown) {
+                    foreach (LineRenderer lr in lines) {
+                        lr.gameObject.SetActive(hittable.isActiveAndEnabled);
+                    }
+                }
+
+                yield return null;
+            }
+        }
+
         public void InGameHud_OnGUI(On.InGameHud.orig_OnGUI orig, InGameHud self) {
             orig(self);
             if (debugText8 == null) {
@@ -569,7 +649,8 @@ namespace TrainerReborn {
             if (currentSceneName == "Level_02_AutumnHills_Build") {
                 bossName = "Leaf Golem";
                 if (Manager<LeafGolemFightManager>.Instance != null) {
-                    bossState = Manager<LeafGolemFightManager>.Instance.bossInstance.stateMachine.CurrentState.ToString().Split(' ', '(')[0];
+                    DynData<LeafGolemBoss> bossData = new DynData<LeafGolemBoss>(Manager<LeafGolemFightManager>.Instance.bossInstance);
+                    bossState = bossData.Get<StateMachine>("stateMachine").CurrentState.ToString().Split(' ', '(')[0];
                     bossHealth = Manager<LeafGolemFightManager>.Instance.bossInstance.CurrentHP.ToString() + "/" + Manager<LeafGolemFightManager>.Instance.bossInstance.maxHP;
                 }
             }
@@ -583,7 +664,8 @@ namespace TrainerReborn {
             if (currentSceneName == "Level_04_Catacombs_Build") {
                 bossName = "Ruxxtin";
                 if (Manager<NecromancerFightManager>.Instance != null) {
-                    bossState = Manager<NecromancerFightManager>.Instance.bossInstance.stateMachine.CurrentState.ToString().Split(' ', '(')[0];
+                    DynData<NecromancerBoss> bossData = new DynData<NecromancerBoss>(Manager<NecromancerFightManager>.Instance.bossInstance);
+                    bossState = bossData.Get<StateMachine>("stateMachine").CurrentState.ToString().Split(' ', '(')[0];
                     bossHealth = Manager<NecromancerFightManager>.Instance.bossInstance.CurrentHP.ToString() + "/" + Manager<NecromancerFightManager>.Instance.bossInstance.maxHP;
                 }
             }
@@ -591,8 +673,9 @@ namespace TrainerReborn {
                 bossName = "Emerald Golem";
                 if (Manager<EmeraldGolemFightManager>.Instance != null) {
                     if (Manager<EmeraldGolemFightManager>.Instance.EssenceComponent == null) {
+                        DynData<EmeraldGolemBoss> bossData = new DynData<EmeraldGolemBoss>(Manager<EmeraldGolemFightManager>.Instance.bossComponent);
                         bossState = Manager<EmeraldGolemFightManager>.Instance.bossComponent.stateMachine.CurrentState.ToString().Split(' ', '(')[0];
-                        bossHealth = "B: " + Manager<EmeraldGolemFightManager>.Instance.bossComponent.CurrentHP + "/" + Manager<EmeraldGolemFightManager>.Instance.bossComponent.maxHP + " G: " + Manager<EmeraldGolemFightManager>.Instance.bossComponent.gemHP + "/" + Manager<EmeraldGolemFightManager>.Instance.bossComponent.gemMaxHP;
+                        bossHealth = "B: " + Manager<EmeraldGolemFightManager>.Instance.bossComponent.CurrentHP + "/" + Manager<EmeraldGolemFightManager>.Instance.bossComponent.maxHP + " G: " + bossData.Get<int>("gemHP") + "/" + Manager<EmeraldGolemFightManager>.Instance.bossComponent.gemMaxHP;
                     } else {
                         bossState = "MovementCoroutine";
                         bossHealth = "E: " + Manager<EmeraldGolemFightManager>.Instance.EssenceComponent.CurrentHP.ToString() + "/" + Manager<EmeraldGolemFightManager>.Instance.EssenceComponent.maxHP;
@@ -608,18 +691,21 @@ namespace TrainerReborn {
             }
             if (currentSceneName == "Level_08_SearingCrags_Build") {
                 bossName = "Colos & Suses";
-                if (Manager<SearingCragsBossFightManager>.Instance != null && Manager<SearingCragsBossFightManager>.Instance.colossusesInstance.stateMachine != null) {
-                    bossState = string.Concat(new object[]
-                    {
-                    bossState,
-                    Manager<SearingCragsBossFightManager>.Instance.colossusesInstance.stateMachine.CurrentState.ToString().Split(' ', '(')[0],
-                    " C: ",
-                    Manager<SearingCragsBossFightManager>.Instance.colosInstance.GetCurrentState().ToString().Split(' ', '(')[0],
-                    " S: ",
-                    Manager<SearingCragsBossFightManager>.Instance.susesInstance.GetCurrentState().ToString().Split(' ', '(')[0]
-                    });
-                    if (Manager<SearingCragsBossFightManager>.Instance.colosInstance != null && Manager<SearingCragsBossFightManager>.Instance.susesInstance != null) {
-                        bossHealth = bossHealth + "C: " + Manager<SearingCragsBossFightManager>.Instance.colosInstance.CurrentHP + "/" + Manager<SearingCragsBossFightManager>.Instance.colosInstance.maxHP + " S: " + Manager<SearingCragsBossFightManager>.Instance.susesInstance.CurrentHP + "/" + Manager<SearingCragsBossFightManager>.Instance.susesInstance.maxHP;
+                if (Manager<SearingCragsBossFightManager>.Instance != null) {
+                    DynData<ColossusesBoss> bossData = new DynData<ColossusesBoss>(Manager<SearingCragsBossFightManager>.Instance.colossusesInstance);
+                    if (bossData.Get<StateMachine>("stateMachine") != null) {
+                        bossState = string.Concat(new object[]
+                        {
+                        bossState,
+                        bossData.Get<StateMachine>("stateMachine").CurrentState.ToString().Split(' ', '(')[0],
+                        " C: ",
+                        Manager<SearingCragsBossFightManager>.Instance.colosInstance.GetCurrentState().ToString().Split(' ', '(')[0],
+                        " S: ",
+                        Manager<SearingCragsBossFightManager>.Instance.susesInstance.GetCurrentState().ToString().Split(' ', '(')[0]
+                        });
+                        if (Manager<SearingCragsBossFightManager>.Instance.colosInstance != null && Manager<SearingCragsBossFightManager>.Instance.susesInstance != null) {
+                            bossHealth = bossHealth + "C: " + Manager<SearingCragsBossFightManager>.Instance.colosInstance.CurrentHP + "/" + Manager<SearingCragsBossFightManager>.Instance.colosInstance.maxHP + " S: " + Manager<SearingCragsBossFightManager>.Instance.susesInstance.CurrentHP + "/" + Manager<SearingCragsBossFightManager>.Instance.susesInstance.maxHP;
+                        }
                     }
                 }
             }
