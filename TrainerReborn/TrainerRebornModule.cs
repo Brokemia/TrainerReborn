@@ -2,9 +2,9 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using Mod.Courier;
 using Mod.Courier.Module;
+using Mod.Courier.Save;
 using Mod.Courier.UI;
 using MonoMod.RuntimeDetour;
 using MonoMod.Utils;
@@ -48,6 +48,10 @@ namespace TrainerReborn {
         public const string INF_HEALTH_DEBUG_TEXT_LOC_ID = "TRAINER_REBORN_INF_HEALTH_DEBUG_TEXT";
         public const string INF_JUMP_DEBUG_TEXT_LOC_ID = "TRAINER_REBORN_INF_JUMP_DEBUG_TEXT";
         public const string SPEED_DEBUG_TEXT_LOC_ID = "TRAINER_REBORN_SPEED_DEBUG_TEXT";
+
+        public char reloadKeyBinding = 'r';
+
+        public char saveKeyBinding = 't';
 
         public bool noKnockback;
 
@@ -151,6 +155,10 @@ namespace TrainerReborn {
             reloadButton.IsEnabled = () => Manager<LevelManager>.Instance.GetCurrentLevelEnum() != ELevel.NONE;
             saveButton.IsEnabled = () => Manager<LevelManager>.Instance.GetCurrentLevelEnum() != ELevel.NONE;
             switchDimensionButton.IsEnabled = () => Manager<LevelManager>.Instance.GetCurrentLevelEnum() != ELevel.NONE;
+
+            // Save keybindings for save and reload to the save file
+            Courier.ModOptionSaveData.Add(new CharacterOptionSaveMethod("BrokemiaTrainerRebornReloadBinding", () => reloadKeyBinding, (val) => reloadKeyBinding = char.ToLower(val)));
+            Courier.ModOptionSaveData.Add(new CharacterOptionSaveMethod("BrokemiaTrainerRebornSaveBinding", () => saveKeyBinding, (val) => saveKeyBinding = char.ToLower(val)));
 
             if (Dicts.tpDict == null) {
                 Dicts.InitTpDict();
@@ -354,6 +362,7 @@ namespace TrainerReborn {
                 // Close mod options menu before TPing out
                 Courier.UI.ModOptionScreen?.Close(false);
 
+                Manager<AudioManager>.Instance.StopMusic();
                 Manager<LevelManager>.Instance.LoadLevel(levelLoadingInfo);
                 return true;
             }
@@ -519,7 +528,14 @@ namespace TrainerReborn {
 
         void PlayerController_Update(On.PlayerController.orig_Update orig, PlayerController self) {
             orig(self);
-            foreach(Hittable hittable in hitboxList) {
+            // Add hacky hotkeys for reloading and saving
+            if(Input.inputString.ToLower().Contains(reloadKeyBinding.ToString())) {
+                OnReloadButton();
+            } else if(Input.inputString.ToLower().Contains(saveKeyBinding.ToString())) {
+                OnSaveButton();
+            }
+
+            foreach (Hittable hittable in hitboxList) {
                 try {
                     self.StartCoroutine(ShowHitboxesRoutine(hittable, hittable.GetComponent<BoxCollider2D>()));
                 } catch (Exception) { }
