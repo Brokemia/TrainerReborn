@@ -49,9 +49,9 @@ namespace TrainerReborn {
         public const string INF_JUMP_DEBUG_TEXT_LOC_ID = "TRAINER_REBORN_INF_JUMP_DEBUG_TEXT";
         public const string SPEED_DEBUG_TEXT_LOC_ID = "TRAINER_REBORN_SPEED_DEBUG_TEXT";
 
-        public char reloadKeyBinding = 'r';
+        public override Type ModuleSaveType => typeof(TrainerRebornSave);
 
-        public char saveKeyBinding = 't';
+        public TrainerRebornSave Save => (TrainerRebornSave)ModuleSave;
 
         public bool noKnockback;
 
@@ -155,10 +155,6 @@ namespace TrainerReborn {
             reloadButton.IsEnabled = () => Manager<LevelManager>.Instance.GetCurrentLevelEnum() != ELevel.NONE;
             saveButton.IsEnabled = () => Manager<LevelManager>.Instance.GetCurrentLevelEnum() != ELevel.NONE;
             switchDimensionButton.IsEnabled = () => Manager<LevelManager>.Instance.GetCurrentLevelEnum() != ELevel.NONE;
-
-            // Save keybindings for save and reload to the save file
-            Courier.ModOptionSaveData.Add(new CharacterOptionSaveMethod("BrokemiaTrainerRebornReloadBinding", () => reloadKeyBinding, (val) => reloadKeyBinding = char.ToLower(val)));
-            Courier.ModOptionSaveData.Add(new CharacterOptionSaveMethod("BrokemiaTrainerRebornSaveBinding", () => saveKeyBinding, (val) => saveKeyBinding = char.ToLower(val)));
 
             if (Dicts.tpDict == null) {
                 Dicts.InitTpDict();
@@ -529,9 +525,9 @@ namespace TrainerReborn {
         void PlayerController_Update(On.PlayerController.orig_Update orig, PlayerController self) {
             orig(self);
             // Add hacky hotkeys for reloading and saving
-            if(Input.inputString.ToLower().Contains(reloadKeyBinding.ToString())) {
+            if(Input.inputString.ToLower().Contains(Save.reloadKeyBinding.ToString())) {
                 OnReloadButton();
-            } else if(Input.inputString.ToLower().Contains(saveKeyBinding.ToString())) {
+            } else if(Input.inputString.ToLower().Contains(Save.saveKeyBinding.ToString())) {
                 OnSaveButton();
             }
 
