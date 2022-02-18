@@ -7,5 +7,9 @@ namespace TrainerReborn {
 
         public char saveKeyBinding = 't';
 
+        public char refillHealthKeyBinding = 'y';
+
+        public char refillShurikenKeyBinding = 'y';
+
     }
 }

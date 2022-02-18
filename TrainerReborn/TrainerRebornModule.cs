@@ -25,6 +25,8 @@ namespace TrainerReborn {
         public const string DEBUG_BOSS_BUTTON_LOC_ID = "TRAINER_REBORN_DEBUG_BOSS_BUTTON";
         public const string TOGGLE_COLLISIONS_BUTTON_LOC_ID = "TRAINER_REBORN_TOGGLE_COLLISIONS_BUTTON";
         public const string SECOND_QUEST_BUTTON_LOC_ID = "TRAINER_REBORN_SECOND_QUEST_BUTTON";
+        public const string REFILL_HEALTH_LOC_ID = "TRAINER_REBORN_REFILL_HEALTH_BUTTON";
+        public const string REFILL_SHURIKEN_LOC_ID = "TRAINER_REBORN_REFILL_SHURIKEN_BUTTON";
         public const string RELOAD_BUTTON_LOC_ID = "TRAINER_REBORN_RELOAD_BUTTON";
         public const string SAVE_BUTTON_LOC_ID = "TRAINER_REBORN_SAVE_BUTTON";
         public const string SPEED_MULT_BUTTON_LOC_ID = "TRAINER_REBORN_SPEED_MULT_BUTTON";
@@ -81,7 +83,7 @@ namespace TrainerReborn {
         
         private static MethodInfo get_PlayerShurikensInfo = typeof(PlayerManager).GetProperty("PlayerShurikens", BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetProperty).GetGetMethod();
         private static MethodInfo get_PlayerShurikensHookInfo = typeof(TrainerRebornModule).GetMethod(nameof(PlayerManager_get_PlayerShurikens), BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod);
-        
+
         ToggleButtonInfo infHealthButton;
         ToggleButtonInfo infShurikenButton;
         ToggleButtonInfo infJumpButton;
@@ -92,6 +94,8 @@ namespace TrainerReborn {
         ToggleButtonInfo toggleCollisionsButton;
         ToggleButtonInfo secondQuestButton;
         ToggleButtonInfo showHitboxesButton;
+        SubMenuButtonInfo refillHealthButton;
+        SubMenuButtonInfo refillShurikenButton;
         SubMenuButtonInfo reloadButton;
         SubMenuButtonInfo saveButton;
         SubMenuButtonInfo switchDimensionButton;
@@ -144,6 +148,8 @@ namespace TrainerReborn {
             debugTextColorButton = Courier.UI.RegisterTextEntryModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(DEBUG_TEXT_COLOR_BUTTON_LOC_ID), OnEnterDebugTextColor, 7, null, () => "", CharsetFlags.Letter);
             tpButton = Courier.UI.RegisterTextEntryModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(TP_BUTTON_LOC_ID), OnEnterTeleportLevel, 17, () => Manager<LocalizationManager>.Instance.GetText(TP_LEVEL_ENTRY_LOC_ID), () => GetLevelNameFromEnum(Manager<LevelManager>.Instance?.GetCurrentLevelEnum() ?? ELevel.NONE), CharsetFlags.Letter);
             getItemButton = Courier.UI.RegisterTextEntryModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(GET_ITEM_BUTTON_LOC_ID), OnEnterItemToGive, 16, () => Manager<LocalizationManager>.Instance.GetText(ITEM_NAME_ENTRY_LOC_ID), () => "", CharsetFlags.Letter);
+            refillHealthButton = Courier.UI.RegisterSubMenuModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(REFILL_HEALTH_LOC_ID), OnRefillHealthButton);
+            refillShurikenButton = Courier.UI.RegisterSubMenuModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(REFILL_SHURIKEN_LOC_ID), OnRefillShurikenButton);
             reloadButton = Courier.UI.RegisterSubMenuModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(RELOAD_BUTTON_LOC_ID), OnReloadButton);
             saveButton = Courier.UI.RegisterSubMenuModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(SAVE_BUTTON_LOC_ID), OnSaveButton);
             switchDimensionButton = Courier.UI.RegisterSubMenuModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(Manager<DimensionManager>.Instance?.CurrentDimension == EBits.BITS_8 ? SWITCH_DIMENSION_TO_16_LOC_ID : SWITCH_DIMENSION_TO_8_LOC_ID), OnSwitchDimensionButton);
@@ -152,6 +158,8 @@ namespace TrainerReborn {
             secondQuestButton.IsEnabled = () => Manager<LevelManager>.Instance.GetCurrentLevelEnum() != ELevel.NONE;
             tpButton.IsEnabled = () => Manager<LevelManager>.Instance.GetCurrentLevelEnum() != ELevel.NONE;
             getItemButton.IsEnabled = () => Manager<LevelManager>.Instance.GetCurrentLevelEnum() != ELevel.NONE;
+            refillHealthButton.IsEnabled = () => Manager<LevelManager>.Instance.GetCurrentLevelEnum() != ELevel.NONE;
+            refillShurikenButton.IsEnabled = () => Manager<LevelManager>.Instance.GetCurrentLevelEnum() != ELevel.NONE;
             reloadButton.IsEnabled = () => Manager<LevelManager>.Instance.GetCurrentLevelEnum() != ELevel.NONE;
             saveButton.IsEnabled = () => Manager<LevelManager>.Instance.GetCurrentLevelEnum() != ELevel.NONE;
             switchDimensionButton.IsEnabled = () => Manager<LevelManager>.Instance.GetCurrentLevelEnum() != ELevel.NONE;
@@ -240,6 +248,16 @@ namespace TrainerReborn {
         void OnReloadButton() {
             Console.WriteLine("Reloading to last checkpoint");
             Manager<LevelManager>.Instance.LoadToLastCheckpoint(false, false);
+        }
+
+        void OnRefillHealthButton() {
+            Console.WriteLine("Refilling health");
+            Manager<PlayerManager>.Instance?.Player?.Heal(int.MaxValue / 2); // A bit hacky, but how can it possibly go wrong
+        }
+
+        void OnRefillShurikenButton() {
+            Console.WriteLine("Refilling shurikens");
+            Manager<PlayerManager>.Instance.PlayerShurikens = Manager<PlayerManager>.Instance.GetMaxShuriken();
         }
 
         void OnToggleCollisions() {
@@ -525,10 +543,19 @@ namespace TrainerReborn {
         void PlayerController_Update(On.PlayerController.orig_Update orig, PlayerController self) {
             orig(self);
             // Add hacky hotkeys for reloading and saving
-            if(Input.inputString.ToLower().Contains(Save.reloadKeyBinding.ToString())) {
-                OnReloadButton();
-            } else if(Input.inputString.ToLower().Contains(Save.saveKeyBinding.ToString())) {
-                OnSaveButton();
+            if (!self.Paused) {
+                String input = Input.inputString.ToLower();
+                if (input.Contains(Save.reloadKeyBinding.ToString())) {
+                    OnReloadButton();
+                } else if (input.Contains(Save.saveKeyBinding.ToString())) {
+                    OnSaveButton();
+                }
+                if(input.Contains(Save.refillHealthKeyBinding.ToString())) {
+                    OnRefillHealthButton();
+                }
+                if (input.Contains(Save.refillShurikenKeyBinding.ToString())) {
+                    OnRefillShurikenButton();
+                }
             }
 
             foreach (Hittable hittable in hitboxList) {
