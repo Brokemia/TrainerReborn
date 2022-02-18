@@ -109,11 +109,27 @@ namespace TrainerReborn {
                 "0"
             },
             {
+                "Shard",
+                "0"
+            },
+            {
                 "TimeTravel",
                 "3"
             },
             {
+                "ScrollUpgrade",
+                "3"
+            },
+            {
                 "RopeDart",
+                "4"
+            },
+            {
+                "Graplou",
+                "4"
+            },
+            {
+                "GrapplingHook", // Shame on you
                 "4"
             },
             {
@@ -153,7 +169,19 @@ namespace TrainerReborn {
                 "11-16"
             },
             {
+                "KeyAll",
+                "11-16"
+            },
+            {
+                "AllKeys",
+                "11-16"
+            },
+            {
                 "MagicSeashell",
+                "19"
+            },
+            {
+                "Seashell",
                 "19"
             },
             {
@@ -161,7 +189,15 @@ namespace TrainerReborn {
                 "20"
             },
             {
+                "Necro",
+                "20"
+            },
+            {
                 "PhobekinAcro",
+                "21"
+            },
+            {
+                "Acro",
                 "21"
             },
             {
@@ -169,7 +205,15 @@ namespace TrainerReborn {
                 "22"
             },
             {
+                "Claustro",
+                "22"
+            },
+            {
                 "PhobekinPyro",
+                "23"
+            },
+            {
+                "Pyro",
                 "23"
             },
             {
@@ -177,7 +221,15 @@ namespace TrainerReborn {
                 "20-23"
             },
             {
+                "AllPhobekins",
+                "20-23"
+            },
+            {
                 "PowerThistle",
+                "25"
+            },
+            {
+                "Thistle",
                 "25"
             },
             {
@@ -185,7 +237,19 @@ namespace TrainerReborn {
                 "29"
             },
             {
-                "LigthfootTabi",
+                "LigthfootTabi", // Keep the typo in for people who are used to it
+                "40"
+            },
+            {
+                "LightfootTabi",
+                "40"
+            },
+            {
+                "Tabi",
+                "40"
+            },
+            {
+                "MagicBoots",
                 "40"
             },
             {
@@ -197,11 +261,27 @@ namespace TrainerReborn {
                 "51"
             },
             {
+                "Crown",
+                "51"
+            },
+            {
                 "Map",
                 "52"
             },
             {
+                "PrecollectedKey1", // Key of adventure or revenge
+                "53"
+            },
+            {
+                "PrecollectedKey2", // Key of adventure or revenge
+                "54"
+            },
+            {
                 "RuxxtinAmulet",
+                "55"
+            },
+            {
+                "Amulet",
                 "55"
             },
             {
@@ -209,7 +289,15 @@ namespace TrainerReborn {
                 "56"
             },
             {
+                "Seed",
+                "56"
+            },
+            {
                 "TeaLeaves",
+                "57"
+            },
+            {
+                "Leaves",
                 "57"
             },
             {
@@ -217,12 +305,60 @@ namespace TrainerReborn {
                 "58"
             },
             {
+                "Sun",
+                "58"
+            },
+            {
+                "Zale",
+                "58"
+            },
+            {
                 "CrestMoon",
+                "59"
+            },
+            {
+                "Moon",
+                "59"
+            },
+            {
+                "Valere",
                 "59"
             },
             {
                 "MagicFirefly",
                 "60"
+            },
+            {
+                "Firefly",
+                "60"
+            },
+            {
+                "FairyBottle",
+                "60"
+            },
+            {
+                "Fairy",
+                "60"
+            },
+            {
+                "Jukebox",
+                "73"
+            },
+            {
+                "WindmillShuriken",
+                "72"
+            },
+            {
+                "MoneySinkReward",
+                "76"
+            },
+            {
+                "Pitou",
+                "76"
+            },
+            {
+                "MoneyWrench",
+                "77"
             }
         };
         }
