@@ -540,11 +540,16 @@ namespace TrainerReborn {
 
         List<Hittable> hitboxList = new List<Hittable>();
 
+        private bool onPauseScreen() {
+            return (Manager<UIManager>.Instance.GetView<PauseScreen>()?.gameObject.activeInHierarchy ?? false) &&
+                !(Manager<UIManager>.Instance.GetView<OptionScreen>()?.gameObject.activeInHierarchy ?? false);
+        }
+
         void PlayerController_Update(On.PlayerController.orig_Update orig, PlayerController self) {
             orig(self);
             // Add hacky hotkeys for reloading and saving
-            if (!self.Paused) {
-                String input = Input.inputString.ToLower();
+            if (!self.Paused || (Manager<UIManager>.Instance.GetView<PauseScreen>()?.gameObject.activeInHierarchy ?? false)) {
+                string input = Input.inputString.ToLower();
                 if (input.Contains(Save.reloadKeyBinding.ToString())) {
                     OnReloadButton();
                 } else if (input.Contains(Save.saveKeyBinding.ToString())) {
