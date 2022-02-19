@@ -134,25 +134,26 @@ namespace TrainerReborn {
                 On.PlayerKnockbackState.StateExit += PlayerKnockbackState_StateExit;
             }
 
+            tpButton = Courier.UI.RegisterTextEntryModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(TP_BUTTON_LOC_ID), OnEnterTeleportLevel, 17, () => Manager<LocalizationManager>.Instance.GetText(TP_LEVEL_ENTRY_LOC_ID), () => GetLevelNameFromEnum(Manager<LevelManager>.Instance?.GetCurrentLevelEnum() ?? ELevel.NONE), CharsetFlags.Letter);
             infHealthButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(INF_HEALTH_BUTTON_LOC_ID), OnInfHealth, (b) => infHealth);
             infShurikenButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(INF_SHURIKEN_BUTTON_LOC_ID), OnInfShuriken, (b) => infShuriken);
             infJumpButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(INF_JUMP_BUTTON_LOC_ID), OnInfJump, (b) => infJump);
             noKnockbackButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(NO_KNOCKBACK_BUTTON_LOC_ID), OnNoKnockback, (b) => noKnockback);
             noBoundsButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(NO_BOUNDS_BUTTON_LOC_ID), OnNoBounds, (b) => noBounds);
-            debugPosButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(DEBUG_POS_BUTTON_LOC_ID), OnDebugPos, (b) => debugPos);
-            debugBossButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(DEBUG_BOSS_BUTTON_LOC_ID), OnDebugBoss, (b) => debugBoss);
             toggleCollisionsButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(TOGGLE_COLLISIONS_BUTTON_LOC_ID), OnToggleCollisions, (b) => !collisionsDisabled);
-            secondQuestButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(SECOND_QUEST_BUTTON_LOC_ID), OnSecondQuest, (b) => Manager<ProgressionManager>.Instance.secondQuest);
-            showHitboxesButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(SHOW_HITBOXES_BUTTON_LOC_ID), OnShowHitboxes, (b) => hitboxesShown);
-            speedMultButton = Courier.UI.RegisterTextEntryModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(SPEED_MULT_BUTTON_LOC_ID), OnEnterSpeed, 4, null, () => Manager<PlayerManager>.Instance?.Player?.RunSpeedMultiplier.ToString() ?? "" + speedMult, CharsetFlags.Number | CharsetFlags.Dot);
-            debugTextColorButton = Courier.UI.RegisterTextEntryModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(DEBUG_TEXT_COLOR_BUTTON_LOC_ID), OnEnterDebugTextColor, 7, null, () => "", CharsetFlags.Letter);
-            tpButton = Courier.UI.RegisterTextEntryModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(TP_BUTTON_LOC_ID), OnEnterTeleportLevel, 17, () => Manager<LocalizationManager>.Instance.GetText(TP_LEVEL_ENTRY_LOC_ID), () => GetLevelNameFromEnum(Manager<LevelManager>.Instance?.GetCurrentLevelEnum() ?? ELevel.NONE), CharsetFlags.Letter);
+            switchDimensionButton = Courier.UI.RegisterSubMenuModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(Manager<DimensionManager>.Instance?.CurrentDimension == EBits.BITS_8 ? SWITCH_DIMENSION_TO_16_LOC_ID : SWITCH_DIMENSION_TO_8_LOC_ID), OnSwitchDimensionButton);
             getItemButton = Courier.UI.RegisterTextEntryModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(GET_ITEM_BUTTON_LOC_ID), OnEnterItemToGive, 16, () => Manager<LocalizationManager>.Instance.GetText(ITEM_NAME_ENTRY_LOC_ID), () => "", CharsetFlags.Letter);
-            refillHealthButton = Courier.UI.RegisterSubMenuModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(REFILL_HEALTH_LOC_ID), OnRefillHealthButton);
-            refillShurikenButton = Courier.UI.RegisterSubMenuModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(REFILL_SHURIKEN_LOC_ID), OnRefillShurikenButton);
             reloadButton = Courier.UI.RegisterSubMenuModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(RELOAD_BUTTON_LOC_ID), OnReloadButton);
             saveButton = Courier.UI.RegisterSubMenuModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(SAVE_BUTTON_LOC_ID), OnSaveButton);
-            switchDimensionButton = Courier.UI.RegisterSubMenuModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(Manager<DimensionManager>.Instance?.CurrentDimension == EBits.BITS_8 ? SWITCH_DIMENSION_TO_16_LOC_ID : SWITCH_DIMENSION_TO_8_LOC_ID), OnSwitchDimensionButton);
+            refillHealthButton = Courier.UI.RegisterSubMenuModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(REFILL_HEALTH_LOC_ID), OnRefillHealthButton);
+            refillShurikenButton = Courier.UI.RegisterSubMenuModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(REFILL_SHURIKEN_LOC_ID), OnRefillShurikenButton);
+            
+            showHitboxesButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(SHOW_HITBOXES_BUTTON_LOC_ID), OnShowHitboxes, (b) => hitboxesShown);
+            debugPosButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(DEBUG_POS_BUTTON_LOC_ID), OnDebugPos, (b) => debugPos);
+            debugBossButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(DEBUG_BOSS_BUTTON_LOC_ID), OnDebugBoss, (b) => debugBoss);
+            speedMultButton = Courier.UI.RegisterTextEntryModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(SPEED_MULT_BUTTON_LOC_ID), OnEnterSpeed, 4, null, () => Manager<PlayerManager>.Instance?.Player?.RunSpeedMultiplier.ToString() ?? "" + speedMult, CharsetFlags.Number | CharsetFlags.Dot);
+            secondQuestButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(SECOND_QUEST_BUTTON_LOC_ID), OnSecondQuest, (b) => Manager<ProgressionManager>.Instance.secondQuest);
+            debugTextColorButton = Courier.UI.RegisterTextEntryModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(DEBUG_TEXT_COLOR_BUTTON_LOC_ID), OnEnterDebugTextColor, 7, null, () => "", CharsetFlags.Letter);
 
             // Disable certain features until we enter the level
             secondQuestButton.IsEnabled = () => Manager<LevelManager>.Instance.GetCurrentLevelEnum() != ELevel.NONE;
