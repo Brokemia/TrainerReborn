@@ -391,12 +391,14 @@ namespace TrainerReborn {
         void OnFullReloadButton() {
             EBits dimension = Manager<DimensionManager>.Instance.currentDimension;
             Manager<PauseManager>.Instance.Resume();
-            Manager<UIManager>.Instance.GetView<OptionScreen>().Close(false);
+            Manager<UIManager>.Instance.GetView<OptionScreen>()?.Close(false);
             //Manager<ProgressionManager>.Instance.checkpointSaveInfo.loadedLevelPlayerPosition = Managernew Vector2(loadPos[0], loadPos[1]);
             LevelLoadingInfo levelLoadingInfo = new LevelLoadingInfo(Manager<LevelManager>.Instance.CurrentSceneName, false, true, LoadSceneMode.Single, ELevelEntranceID.NONE, dimension);
             //Console.WriteLine("Teleporting to location " + tpLoc + " in " + level);
             // Close mod options menu before TPing out
-            Courier.UI.ModOptionScreen?.Close(false);
+            if (Courier.UI.ModOptionScreenLoaded) {
+                Courier.UI.ModOptionScreen?.Close(false);
+            }
 
             Manager<AudioManager>.Instance.StopMusic();
             Manager<LevelManager>.Instance.LoadLevel(levelLoadingInfo);
