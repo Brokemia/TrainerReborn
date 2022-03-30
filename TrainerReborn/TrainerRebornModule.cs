@@ -28,6 +28,7 @@ namespace TrainerReborn {
         public const string REFILL_HEALTH_LOC_ID = "TRAINER_REBORN_REFILL_HEALTH_BUTTON";
         public const string REFILL_SHURIKEN_LOC_ID = "TRAINER_REBORN_REFILL_SHURIKEN_BUTTON";
         public const string RELOAD_BUTTON_LOC_ID = "TRAINER_REBORN_RELOAD_BUTTON";
+        public const string FULL_RELOAD_BUTTON_LOC_ID = "TRAINER_REBORN_FULL_RELOAD_BUTTON";
         public const string SAVE_BUTTON_LOC_ID = "TRAINER_REBORN_SAVE_BUTTON";
         public const string SPEED_MULT_BUTTON_LOC_ID = "TRAINER_REBORN_SPEED_MULT_BUTTON";
         public const string DEBUG_TEXT_COLOR_BUTTON_LOC_ID = "TRAINER_REBORN_DEBUG_TEXT_COLOR_BUTTON";
@@ -98,6 +99,7 @@ namespace TrainerReborn {
         SubMenuButtonInfo refillShurikenButton;
         SubMenuButtonInfo reloadButton;
         SubMenuButtonInfo saveButton;
+        SubMenuButtonInfo fullReloadButton;
         SubMenuButtonInfo switchDimensionButton;
         TextEntryButtonInfo speedMultButton;
         TextEntryButtonInfo debugTextColorButton;
@@ -143,8 +145,9 @@ namespace TrainerReborn {
             toggleCollisionsButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(TOGGLE_COLLISIONS_BUTTON_LOC_ID), OnToggleCollisions, (b) => !collisionsDisabled);
             switchDimensionButton = Courier.UI.RegisterSubMenuModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(Manager<DimensionManager>.Instance?.CurrentDimension == EBits.BITS_8 ? SWITCH_DIMENSION_TO_16_LOC_ID : SWITCH_DIMENSION_TO_8_LOC_ID), OnSwitchDimensionButton);
             getItemButton = Courier.UI.RegisterTextEntryModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(GET_ITEM_BUTTON_LOC_ID), OnEnterItemToGive, 16, () => Manager<LocalizationManager>.Instance.GetText(ITEM_NAME_ENTRY_LOC_ID), () => "", CharsetFlags.Letter);
-            reloadButton = Courier.UI.RegisterSubMenuModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(RELOAD_BUTTON_LOC_ID), OnReloadButton);
             saveButton = Courier.UI.RegisterSubMenuModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(SAVE_BUTTON_LOC_ID), OnSaveButton);
+            reloadButton = Courier.UI.RegisterSubMenuModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(RELOAD_BUTTON_LOC_ID), OnReloadButton);
+            fullReloadButton = Courier.UI.RegisterSubMenuModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(FULL_RELOAD_BUTTON_LOC_ID), OnFullReloadButton);
             refillHealthButton = Courier.UI.RegisterSubMenuModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(REFILL_HEALTH_LOC_ID), OnRefillHealthButton);
             refillShurikenButton = Courier.UI.RegisterSubMenuModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(REFILL_SHURIKEN_LOC_ID), OnRefillShurikenButton);
             
@@ -385,6 +388,20 @@ namespace TrainerReborn {
             return false;
         }
 
+        void OnFullReloadButton() {
+            EBits dimension = Manager<DimensionManager>.Instance.currentDimension;
+            Manager<PauseManager>.Instance.Resume();
+            Manager<UIManager>.Instance.GetView<OptionScreen>().Close(false);
+            //Manager<ProgressionManager>.Instance.checkpointSaveInfo.loadedLevelPlayerPosition = Managernew Vector2(loadPos[0], loadPos[1]);
+            LevelLoadingInfo levelLoadingInfo = new LevelLoadingInfo(Manager<LevelManager>.Instance.CurrentSceneName, false, true, LoadSceneMode.Single, ELevelEntranceID.NONE, dimension);
+            //Console.WriteLine("Teleporting to location " + tpLoc + " in " + level);
+            // Close mod options menu before TPing out
+            Courier.UI.ModOptionScreen?.Close(false);
+
+            Manager<AudioManager>.Instance.StopMusic();
+            Manager<LevelManager>.Instance.LoadLevel(levelLoadingInfo);
+        }
+
         void OnSwitchDimensionButton() {
             Manager<DimensionManager>.Instance.SetDimension(Manager<DimensionManager>.Instance.CurrentDimension == EBits.BITS_8 ? EBits.BITS_16 : EBits.BITS_8);
             switchDimensionButton.nameTextMesh.text = switchDimensionButton.GetText();
@@ -555,6 +572,8 @@ namespace TrainerReborn {
                     OnReloadButton();
                 } else if (input.Contains(Save.saveKeyBinding.ToString())) {
                     OnSaveButton();
+                } else if(input.Contains(Save.fullReloadKeyBinding.ToString())) {
+                    OnFullReloadButton();
                 }
                 if(input.Contains(Save.refillHealthKeyBinding.ToString())) {
                     OnRefillHealthButton();

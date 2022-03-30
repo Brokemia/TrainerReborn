@@ -11,5 +11,7 @@ namespace TrainerReborn {
 
         public char refillShurikenKeyBinding = 'y';
 
+        public char fullReloadKeyBinding = 'u';
+
     }
 }
