@@ -1,4 +1,5 @@
-﻿using System;
+﻿
+using System;
 using System.Collections.Generic;
 
 namespace TrainerReborn {
@@ -6,6 +7,7 @@ namespace TrainerReborn {
         public static SortedDictionary<string, string> levelDict;
         public static SortedDictionary<string, string> itemDict;
         public static SortedDictionary<string, SortedDictionary<int, float[]>> tpDict;
+        public static SortedDictionary<string, string> flagsDict;
 
         public static void InitLevelDict() {
             levelDict = new SortedDictionary<string, string>(StringComparer.InvariantCultureIgnoreCase)
@@ -1943,6 +1945,12 @@ namespace TrainerReborn {
                 }
             }
         });
+        }
+
+        public static void InitFlagsDict()
+        {
+            flagsDict = new SortedDictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
+            
         }
     }
 }
