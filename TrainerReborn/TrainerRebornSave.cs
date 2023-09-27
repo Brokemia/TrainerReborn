@@ -13,5 +13,10 @@ namespace TrainerReborn {
 
         public char fullReloadKeyBinding = 'u';
 
+        public char disableCheckpoints = 'j';
+
+        public char toggleRestoreBlocks = 'k';
+
+        public char toggleRoomTimer = 'l';
     }
 }

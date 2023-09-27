@@ -61,6 +61,13 @@ namespace TrainerReborn
         public const string RESET_BADONK_RELOAD_BUTTON_LOC_ID = "TRAINER_REBORN_RESET_BADONK_RELOAD_TEXT";
 
         public const string DEBUG_ROOM_TIMER_BUTTON_LOC_ID = "TRAINER_REBORN_DEBUG_ROOM_TIMER_TEXT";
+        public const string DISABLE_CHECKPOINTS_BUTTON_LOC_ID = "TRAINER_REBORN_DISABLE_CHECKPOINTS_BUTTON";
+
+        public const string DISABLE_CHECKPOINTS_TEXT_LOC_ID = "TRAINER_REBORN_DISABLE_CHECKPOINTS_TEXT";
+
+        public const string TOGGLE_RESTORE_BLOCKS_BUTTON_LOC_ID = "TRAINER_REBORN_RESTORE_BLOCKS_BUTTON";
+
+        public const string RESTORE_BLOCKS_TEXT_LOC_ID = "TRAINER_REBORN_RESTORE_BLOCKS_TEXT";
 
         public override Type ModuleSaveType => typeof(TrainerRebornSave);
 
@@ -129,12 +136,17 @@ namespace TrainerReborn
         TextEntryButtonInfo tpButton;
         TextEntryButtonInfo getItemButton;
         ToggleButtonInfo debugRoomTimerButton;
+        ToggleButtonInfo disableCheckpointsButton;
+        ToggleButtonInfo toggleRestoreBlocksButton;
 
         private bool receivingHit;
 
         public bool resetBadonkOnReload = false;
         public bool resetGauntledOnReload = false;
         public bool debugRoomTimer = false;
+        public bool disableCheckpoints = false;
+
+        public bool restoreBlocks = false;
 
         public override void Load()
         {
@@ -202,12 +214,17 @@ namespace TrainerReborn
             switchDimensionButton.IsEnabled = () => Manager<LevelManager>.Instance.GetCurrentLevelEnum() != ELevel.NONE;
 
             reloadBehaviourButton = Courier.UI.RegisterSubMenuModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(RELOAD_BEHAVIOUR_LOC_ID), null);
-            resetGauntletOnReloadButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(RESET_GAUNTLET_RELOAD_BUTTON_LOC_ID), onResetGauntletOnReload, (b) => resetGauntledOnReload);
-            resetBadonkOnReloadButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(RESET_BADONK_RELOAD_BUTTON_LOC_ID), onResetBadonkOnReload, (b) => resetBadonkOnReload);
+            resetGauntletOnReloadButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(RESET_GAUNTLET_RELOAD_BUTTON_LOC_ID), OnResetGauntletOnReload, (b) => resetGauntledOnReload);
+            resetBadonkOnReloadButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(RESET_BADONK_RELOAD_BUTTON_LOC_ID), OnResetBadonkOnReload, (b) => resetBadonkOnReload);
 
             debugRoomTimerButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(DEBUG_ROOM_TIMER_BUTTON_LOC_ID), OnDebugRoomTimer, (b) => debugRoomTimer);
+            disableCheckpointsButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(DISABLE_CHECKPOINTS_BUTTON_LOC_ID), OnDisableCheckpoints, (b) => disableCheckpoints);
 
+            toggleRestoreBlocksButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(TOGGLE_RESTORE_BLOCKS_BUTTON_LOC_ID), OnToggleRestoreBlocks, (b) => restoreBlocks);
+
+            On.BreakableCollision.OnEnterRoom += BreakableCollision_OnEnterRoom;
             On.LevelRoom.EnterRoom += LevelRoom_EnterRoom;
+           
 
             if (Dicts.tpDict == null)
             {
@@ -358,14 +375,14 @@ namespace TrainerReborn
             }
         }
 
-        void onResetGauntletOnReload()
+        void OnResetGauntletOnReload()
         {
             resetGauntledOnReload = !resetGauntledOnReload;
             resetGauntletOnReloadButton.UpdateStateText();
             Console.WriteLine("Reset Gauntlet On Reload: " + resetGauntledOnReload);
         }
 
-        void onResetBadonkOnReload()
+        void OnResetBadonkOnReload()
         {
             resetBadonkOnReload = !resetBadonkOnReload;
             resetBadonkOnReloadButton.UpdateStateText();
@@ -418,11 +435,26 @@ namespace TrainerReborn
             Console.WriteLine("Room Timer Display: " + debugRoomTimer);
         }
 
+        void OnDisableCheckpoints()
+        {
+            disableCheckpoints = !disableCheckpoints;
+            disableCheckpointsButton.UpdateStateText();
+            if(disableCheckpoints)
+            {
+                Manager<SaveManager>.Instance.DisableSave("TrainerReborn");
+            }else
+            {
+                Manager<SaveManager>.Instance.EnableSave("TrainerReborn");
+            }
+            
+            Console.WriteLine("Disable Checkpoints: " + disableCheckpoints);
+        }
+
         void OnSaveButton()
         {
             Console.WriteLine("Instant Saving");
             Vector3 loadedLevelPlayerPosition = new Vector2(Manager<PlayerManager>.Instance.Player.transform.position.x, Manager<PlayerManager>.Instance.Player.transform.position.y);
-            Manager<ProgressionManager>.Instance.checkpointSaveInfo.loadedLevelPlayerPosition = loadedLevelPlayerPosition;
+            Manager<ProgressionManager>.Instance.SaveFastRetryCheckpoint(loadedLevelPlayerPosition);
             Manager<SaveManager>.Instance.Save();
         }
 
@@ -820,6 +852,18 @@ namespace TrainerReborn
                 {
                     OnRefillShurikenButton();
                 }
+                if (input.Contains(Save.disableCheckpoints.ToString()))
+                {
+                    OnDisableCheckpoints();
+                }
+                if (input.Contains(Save.toggleRestoreBlocks.ToString()))
+                {
+                    OnToggleRestoreBlocks();
+                }
+                if (input.Contains(Save.toggleRoomTimer.ToString()))
+                {
+                    OnDebugRoomTimer();
+                }
             }
 
             foreach (Hittable hittable in hitboxList)
@@ -966,8 +1010,17 @@ namespace TrainerReborn
             {
                 AddToDebug(GetDebugBossString());
             }
+            if (disableCheckpoints)
+            {
+                AddToDebug("\r\n" + Manager<LocalizationManager>.Instance.GetText(DISABLE_CHECKPOINTS_TEXT_LOC_ID));
+            }
+            if (restoreBlocks)
+            {
+                AddToDebug("\r\n" + Manager<LocalizationManager>.Instance.GetText(RESTORE_BLOCKS_TEXT_LOC_ID));
+            }
             if (debugRoomTimer)
             {
+                AddToDebug("\r\n");
                 AddToDebug("Room Timer");
                 AddToDebug("\r\n");
                 AddToDebug("Current: " + FormatRoomTimer(RoomTimerPrecisionCurrent));
@@ -1192,5 +1245,18 @@ namespace TrainerReborn
 
             return sb.ToString();
         }
+        void OnToggleRestoreBlocks()
+        {
+            restoreBlocks = !restoreBlocks;
+            toggleRestoreBlocksButton.UpdateStateText();
+            Console.WriteLine("Restore Blocks: " + restoreBlocks);
+        }
+
+        private void BreakableCollision_OnEnterRoom(On.BreakableCollision.orig_OnEnterRoom orig, BreakableCollision self, bool teleportedInRoom)
+        {
+            self.repairOnEnterRoom = restoreBlocks;
+            orig(self, teleportedInRoom);
+        }
     }
+
 }
