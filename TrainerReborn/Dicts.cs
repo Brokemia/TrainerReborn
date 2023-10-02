@@ -1,20 +1,26 @@
 ﻿
 using System;
 using System.Collections.Generic;
+using TrainerReborn.utils;
 
-namespace TrainerReborn {
-    public static class Dicts {
+namespace TrainerReborn
+{
+    public static class Dicts
+    {
         public static SortedDictionary<string, string> levelDict;
         public static SortedDictionary<string, string> itemDict;
         public static SortedDictionary<string, SortedDictionary<int, float[]>> tpDict;
+        public static SortedDictionary<string, Tuple<ELevel, float[]>> tpRoomDict;
         public static SortedDictionary<string, string> flagsDict;
 
-        public static void InitLevelDict() {
+        public static void InitLevelDict()
+        {
             levelDict = new SortedDictionary<string, string>(StringComparer.InvariantCultureIgnoreCase)
             {
             {
                 "AutumnHills",
                 ELevel.Level_02_AutumnHills.ToString()
+
             },
             {
                 "BambooCreek",
@@ -103,7 +109,8 @@ namespace TrainerReborn {
         };
         }
 
-        public static void InitItemDict() {
+        public static void InitItemDict()
+        {
             itemDict = new SortedDictionary<string, string>(StringComparer.InvariantCultureIgnoreCase)
             {
             {
@@ -365,7 +372,8 @@ namespace TrainerReborn {
         };
         }
 
-        public static void InitTpDict() {
+        public static void InitTpDict()
+        {
             tpDict = new SortedDictionary<string, SortedDictionary<int, float[]>>(StringComparer.InvariantCultureIgnoreCase);
             tpDict.Add("NinjaVillage", new SortedDictionary<int, float[]>
             {
@@ -1947,10 +1955,72 @@ namespace TrainerReborn {
         });
         }
 
+        public static void InitTpRoomDict()
+        {
+            tpRoomDict = new SortedDictionary<string, Tuple<ELevel, float[]>>(StringComparer.InvariantCultureIgnoreCase)
+            {
+                {
+                    "BC-11",
+                    new Tuple<ELevel, float[]>(ELevel.Level_06_A_BambooCreek, new float[2]
+                {
+                    173.1f,
+                    -3f
+                })
+                },
+                {
+                    "C-13",
+                    new Tuple<ELevel, float[]>(ELevel.Level_04_Catacombs, new float[2]
+                {
+                    455.4f,
+                    -56f
+                })
+                },
+                {
+                    "C-14",
+                    new Tuple<ELevel, float[]>(ELevel.Level_04_Catacombs, new float[2]
+                {
+                    461f,
+                    -35f
+                })
+                },
+                {
+                    "C-16",
+                    new Tuple<ELevel, float[]>(ELevel.Level_04_Catacombs, new float[2]
+                {
+                    493.1f,
+                    -59f
+                })
+                },
+                {
+                    "C-19",
+                    new Tuple<ELevel, float[]>(ELevel.Level_04_Catacombs, new float[2]
+                {
+                    588.8f,
+                    -75f
+                })
+                },
+                {
+                    "C-21",
+                    new Tuple<ELevel, float[]>(ELevel.Level_04_Catacombs, new float[2]
+                {
+                    652.8f,
+                    -75f
+                })
+                },
+                {
+                    "C-24",
+                    new Tuple<ELevel, float[]>(ELevel.Level_04_Catacombs, new float[2]
+                {
+                    717f,
+                    -75f
+                })
+                },
+            };
+        }
         public static void InitFlagsDict()
         {
             flagsDict = new SortedDictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
-            
+
         }
     }
 }

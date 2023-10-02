@@ -14,7 +14,9 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
+using static FightingBossHitData;
 using static Mod.Courier.UI.TextEntryButtonInfo;
+using static UnityEngine.EventSystems.EventTrigger;
 
 namespace TrainerReborn
 {
@@ -99,6 +101,9 @@ namespace TrainerReborn
 
         private TextMeshProUGUI debugText16;
 
+        private TextMeshProUGUI roomTimerText8;
+        private TextMeshProUGUI roomTimerText16;
+
         private static MethodInfo get_PlayerShurikensInfo = typeof(PlayerManager).GetProperty("PlayerShurikens", BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetProperty).GetGetMethod();
         private static MethodInfo get_PlayerShurikensHookInfo = typeof(TrainerRebornModule).GetMethod(nameof(PlayerManager_get_PlayerShurikens), BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod);
 
@@ -106,11 +111,14 @@ namespace TrainerReborn
         private const int RoomTimerPrecisionCurrent = 2;
         private const int RoomTimerPrecisionPrevious = 3;
         private const string RoomTimerSeparator = " / ";
-        private static readonly string DefaultLastRoomTime = "0." + new string('0', RoomTimerPrecisionPrevious) + RoomTimerSeparator;
+        private static readonly string DefaultLastRoomTime = "0." + new string('0', RoomTimerPrecisionPrevious);
 
         private string lastRoomKey;
+        private string sectionStartRoomKey;
+        private EBits sectionStartDimension;
         private string lastRoomTime = DefaultLastRoomTime;
         private readonly Stopwatch roomWatch = new Stopwatch();
+        private readonly Stopwatch sectionWatch = new Stopwatch();
 
         ToggleButtonInfo infHealthButton;
         ToggleButtonInfo infShurikenButton;
@@ -138,6 +146,9 @@ namespace TrainerReborn
         ToggleButtonInfo debugRoomTimerButton;
         ToggleButtonInfo disableCheckpointsButton;
         ToggleButtonInfo toggleRestoreBlocksButton;
+        ToggleButtonInfo toggleSectionTimerButton;
+        TextEntryButtonInfo sectionLimitButton;
+        TextEntryButtonInfo tpRoomButton;
 
         private bool receivingHit;
 
@@ -145,6 +156,18 @@ namespace TrainerReborn
         public bool resetGauntledOnReload = false;
         public bool debugRoomTimer = false;
         public bool disableCheckpoints = false;
+        public bool debugSectionTimer = false;
+        public int sectionCounter = 0;
+        public int sectionLimit = 1;
+
+        public string hitGameObject;
+        public string hurtZoneName;
+        public float hitDirection;
+        public float gameObjectX;
+        public float hurtZoneX;
+        public HitData receiveHitHitData;
+
+        private string lastSectionTime = DefaultLastRoomTime;
 
         public bool restoreBlocks = false;
 
@@ -222,9 +245,17 @@ namespace TrainerReborn
 
             toggleRestoreBlocksButton = Courier.UI.RegisterToggleModOptionButton(() => Manager<LocalizationManager>.Instance.GetText(TOGGLE_RESTORE_BLOCKS_BUTTON_LOC_ID), OnToggleRestoreBlocks, (b) => restoreBlocks);
 
+            toggleSectionTimerButton = Courier.UI.RegisterToggleModOptionButton(() => "Show Section Debug Info", OnToggleSectionTimer, (b) => debugSectionTimer);
+            sectionLimitButton = Courier.UI.RegisterTextEntryModOptionButton(() => "Section Limit", OnSectionLimitButton,2,() => "Set Section Limit", () => "1", CharsetFlags.Number);
+            tpRoomButton = Courier.UI.RegisterTextEntryModOptionButton(() => "Teleport to Room", OnEnterTeleportRoom, 17, () => "Teleport to Room",  () => "",CharsetFlags.Letter | CharsetFlags.Dash | CharsetFlags.Number);
+
             On.BreakableCollision.OnEnterRoom += BreakableCollision_OnEnterRoom;
-            On.LevelRoom.EnterRoom += LevelRoom_EnterRoom;
-           
+            On.LevelRoom.EnterRoom += LevelRoom_EnterRoom_RoomTimer;
+            On.LevelRoom.EnterRoom += LevelRoom_EnterRoom_SectionTimer;
+
+            On.HurtZone.HitPlayer += HurtZone_HitPlayer;
+            On.PlayerController.ReceiveHit += PlayerController_ReceiveHit1;
+
 
             if (Dicts.tpDict == null)
             {
@@ -240,7 +271,25 @@ namespace TrainerReborn
             }
         }
 
-        private void LevelRoom_EnterRoom(On.LevelRoom.orig_EnterRoom orig, LevelRoom self, bool teleportedInRoom)
+
+        private void PlayerController_ReceiveHit1(On.PlayerController.orig_ReceiveHit orig, PlayerController self, HitData hitData)
+        {
+            receiveHitHitData=hitData;
+            orig(self, hitData);
+        }
+
+        private void HurtZone_HitPlayer(On.HurtZone.orig_HitPlayer orig, HurtZone self, GameObject collidedWith)
+        {
+            hitGameObject = collidedWith.name;
+            gameObjectX = collidedWith.transform.position.x;
+            hurtZoneName = self.name;
+            hurtZoneX = self.transform.position.x;
+            hitDirection = collidedWith.transform.position.x - self.transform.position.x;
+
+            orig(self, collidedWith);
+        }
+
+        private void LevelRoom_EnterRoom_RoomTimer(On.LevelRoom.orig_EnterRoom orig, LevelRoom self, bool teleportedInRoom)
         {
             if (debugRoomTimer)
             {
@@ -259,14 +308,14 @@ namespace TrainerReborn
                         }
                         else
                         {
-                            lastRoomTime = FormatRoomTimer(RoomTimerPrecisionPrevious);
+                            lastRoomTime = FormatRoomTimer(RoomTimerPrecisionPrevious, roomWatch);
                             roomWatch.Reset(); //Restart after loading
                             roomWatch.Start();
                         }
                     }
                     else
                     {
-                        lastRoomTime = FormatRoomTimer(RoomTimerPrecisionPrevious);
+                        lastRoomTime = FormatRoomTimer(RoomTimerPrecisionPrevious, roomWatch);
                         roomWatch.Reset();
                         roomWatch.Start();
                     }
@@ -432,6 +481,11 @@ namespace TrainerReborn
             {
                 roomWatch.Stop();
             }
+            if (!debugRoomTimer && sectionWatch.IsRunning)
+            {
+                sectionWatch.Stop();
+            }
+
             Console.WriteLine("Room Timer Display: " + debugRoomTimer);
         }
 
@@ -453,8 +507,19 @@ namespace TrainerReborn
         void OnSaveButton()
         {
             Console.WriteLine("Instant Saving");
+            if(debugRoomTimer)
+            {
+                sectionStartRoomKey = null;
+                sectionStartDimension = EBits.NONE;
+            }
             Vector3 loadedLevelPlayerPosition = new Vector2(Manager<PlayerManager>.Instance.Player.transform.position.x, Manager<PlayerManager>.Instance.Player.transform.position.y);
-            Manager<ProgressionManager>.Instance.SaveFastRetryCheckpoint(loadedLevelPlayerPosition);
+            Manager<ProgressionManager>.Instance.checkpointSaveInfo.mana = Manager<PlayerManager>.Instance.PlayerShurikens; ;
+            Manager<ProgressionManager>.Instance.checkpointSaveInfo.loadedLevelPlayerPosition = loadedLevelPlayerPosition;
+            Manager<ProgressionManager>.Instance.checkpointSaveInfo.loadedLevelName = Manager<LevelManager>.Instance.CurrentSceneName;
+            Manager<ProgressionManager>.Instance.checkpointSaveInfo.loadedLevelDimension = Manager<DimensionManager>.Instance.CurrentDimension;
+            Manager<ProgressionManager>.Instance.checkpointSaveInfo.playerLocationSceneName = Manager<LevelManager>.Instance.CurrentSceneName;
+            Manager<ProgressionManager>.Instance.checkpointSaveInfo.playerFacingDirection = Manager<PlayerManager>.Instance.Player.LookDirection;
+            Manager<ProgressionManager>.Instance.checkpointSaveInfo.playerLocationDimension = Manager<DimensionManager>.Instance.CurrentDimension;
             Manager<SaveManager>.Instance.Save();
         }
 
@@ -956,8 +1021,30 @@ namespace TrainerReborn
                 debugText8.color = debugTextColor;
                 debugText16.color = debugTextColor;
             }
+            if(roomTimerText8 == null)
+            {
+                roomTimerText8 = UnityEngine.Object.Instantiate(self.hud_8.coinCount, self.hud_8.gameObject.transform);
+                roomTimerText16 = UnityEngine.Object.Instantiate(self.hud_16.coinCount, self.hud_16.gameObject.transform);
+                roomTimerText8.transform.Translate(-1000f, 12.5f, 0f);
+                roomTimerText16.transform.Translate(-1000f, 12.5f, 0f);
+                roomTimerText8.alignment = TextAlignmentOptions.Left;
+                roomTimerText16.alignment = TextAlignmentOptions.Left;
+                roomTimerText8.fontSize = 7f;
+                roomTimerText16.fontSize = 7f;
+                roomTimerText8.enableWordWrapping = false;
+                roomTimerText16.enableWordWrapping = false;
+                roomTimerText8.color = Color.white;
+                roomTimerText16.color = Color.white;
+            }
+            roomTimerText8.text = roomTimerText16.text = string.Empty;
             debugText8.text = debugText16.text = string.Empty;
             UpdateDebugText();
+        }
+
+        private void AddNextToPlayerName(string debug)
+        {
+            roomTimerText8.text += debug;
+            roomTimerText16.text += debug;
         }
 
         private void AddToDebug(string debug)
@@ -966,6 +1053,9 @@ namespace TrainerReborn
             debugText16.text += debug;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
         private void UpdateDebugText()
         {
             if (debugPos)
@@ -1018,15 +1108,46 @@ namespace TrainerReborn
             {
                 AddToDebug("\r\n" + Manager<LocalizationManager>.Instance.GetText(RESTORE_BLOCKS_TEXT_LOC_ID));
             }
-            if (debugRoomTimer)
+            if (debugSectionTimer)
             {
                 AddToDebug("\r\n");
-                AddToDebug("Room Timer");
+                AddToDebug("Start Room: " + SceneManager.GetActiveScene().name);
                 AddToDebug("\r\n");
-                AddToDebug("Current: " + FormatRoomTimer(RoomTimerPrecisionCurrent));
+                AddToDebug("Start Dimension: " + sectionStartDimension);
                 AddToDebug("\r\n");
-                AddToDebug("Last: " + lastRoomTime);
+                AddToDebug("Limit: " + sectionLimit);
+                AddToDebug("\r\n");
+                AddToDebug("Count: " + sectionCounter);
             }
+            if (debugRoomTimer)
+            {
+                AddNextToPlayerName("\r\n");
+                AddNextToPlayerName("Section (" + sectionCounter + "/" + sectionLimit + ")");
+                AddNextToPlayerName("\r\n");
+                AddNextToPlayerName(FormatRoomTimer(RoomTimerPrecisionCurrent, sectionWatch) + RoomTimerSeparator + lastSectionTime);
+                AddNextToPlayerName("\r\n");
+                AddNextToPlayerName("\r\n");
+                AddNextToPlayerName("Room");
+                AddNextToPlayerName("\r\n");
+                AddNextToPlayerName(FormatRoomTimer(RoomTimerPrecisionCurrent, roomWatch) + RoomTimerSeparator + lastRoomTime);
+                
+            }
+            //AddToDebug("\r\n");
+            //AddToDebug("Gameobject Name: " + hitGameObject);
+            //AddToDebug("\r\n");
+            //AddToDebug("Gameobject Postion X: " + gameObjectX);
+            //AddToDebug("\r\n");
+            //AddToDebug("Hurtzone: " + hurtZoneName);
+            //AddToDebug("\r\n");
+            //AddToDebug("Hurtzone X: " + hurtZoneX);
+            //AddToDebug("\r\n");
+            //AddToDebug("Hit Direction: " + hitDirection);
+            //AddToDebug("\r\n");
+            //AddToDebug("Receive Hit Direction: " + receiveHitHitData.hitDirection);
+            //AddToDebug("\r\n");
+            //AddToDebug("Receive Hit Zone: " +receiveHitHitData.hitZone);
+            //AddToDebug("Knockback State:" + Mathf.Sign(hitDirection));
+
         }
 
         private string GetDebugBossString()
@@ -1212,7 +1333,7 @@ namespace TrainerReborn
             }
             return "\r\n" + bossName + " HP: " + bossHealth + "\r\nState: " + bossState;
         }
-        private string FormatRoomTimer(int msPrecision)
+        private string FormatRoomTimer(int msPrecision, Stopwatch roomWatch)
         {
             TimeSpan elapsed = roomWatch.Elapsed;
 
@@ -1257,6 +1378,116 @@ namespace TrainerReborn
             self.repairOnEnterRoom = restoreBlocks;
             orig(self, teleportedInRoom);
         }
-    }
 
+        void OnToggleSectionTimer()
+        {
+            debugSectionTimer = !debugSectionTimer;
+            toggleSectionTimerButton.UpdateStateText();
+            Console.WriteLine("Debug Section Timer: " + debugSectionTimer);
+        }
+
+        bool OnSectionLimitButton(string limit)
+        {
+            sectionLimit = int.Parse(limit);
+            sectionCounter = 0;
+            sectionLimitButton.UpdateStateText();
+
+            if (sectionWatch.IsRunning)
+            {
+                sectionWatch.Stop();
+                sectionWatch.Reset();
+            }
+
+            Console.WriteLine("Section Limit: " + sectionLimit);
+
+            return true;
+        }
+
+
+        private void LevelRoom_EnterRoom_SectionTimer(On.LevelRoom.orig_EnterRoom orig, LevelRoom self, bool teleportedInRoom)
+        {
+            if (debugRoomTimer)
+            {
+                var roomKey = self.roomKey;
+                var currentDimension = Manager<DimensionManager>.Instance.currentDimension;
+                if (String.IsNullOrEmpty(roomKey))
+                {
+                    sectionWatch.Stop();
+                }
+                else
+                {
+                    if (String.IsNullOrEmpty(sectionStartRoomKey))
+                    {
+                        sectionStartRoomKey = roomKey;
+                        sectionStartDimension = Manager<DimensionManager>.Instance.currentDimension;
+                    }
+                    if (String.IsNullOrEmpty(lastRoomKey))
+                    {
+                        if (lastRoomKey == roomKey)
+                        {
+                            sectionWatch.Start(); //Resume after loading
+                            sectionCounter = 0;
+                        }
+                        else
+                        {
+                            lastSectionTime = FormatRoomTimer(RoomTimerPrecisionPrevious, sectionWatch);
+                            sectionWatch.Reset(); //Restart after loading
+                            sectionWatch.Start();
+                            sectionCounter = 0;
+                        }
+                    }
+                    else
+                    {
+                        if (sectionStartRoomKey == roomKey && sectionStartDimension == currentDimension)
+                        {
+                            lastSectionTime = FormatRoomTimer(RoomTimerPrecisionPrevious, sectionWatch);
+                            sectionWatch.Reset();
+                            sectionWatch.Start();
+                            sectionCounter = 0;
+                        } else
+                        {
+                            sectionCounter += 1;
+                        }
+                           
+                        if (sectionCounter == sectionLimit)
+                        {
+                            sectionWatch.Stop();
+                            lastSectionTime = FormatRoomTimer(RoomTimerPrecisionPrevious, sectionWatch);
+                        }
+                    }
+                    lastRoomKey = roomKey;
+                }
+
+            }
+            orig(self, teleportedInRoom);
+        }
+
+        bool OnEnterTeleportRoom(string room)
+        {
+            if (Dicts.tpRoomDict == null)
+            {
+                Dicts.InitTpRoomDict();
+            }
+            if (!String.IsNullOrEmpty(room))
+            {
+                var tpData = Dicts.tpRoomDict[room];
+                var level = tpData.First;
+                var loadPos = tpData.Second;
+                EBits dimension = Manager<DimensionManager>.Instance.currentDimension;
+                Manager<PauseManager>.Instance.Resume();
+                Manager<UIManager>.Instance.GetView<OptionScreen>().Close(false);
+                string levelName = level.ToString() + "_Build";
+                Manager<ProgressionManager>.Instance.checkpointSaveInfo.loadedLevelPlayerPosition = new Vector2(loadPos[0], loadPos[1]);
+                LevelLoadingInfo levelLoadingInfo = new LevelLoadingInfo(levelName, false, true, LoadSceneMode.Single, ELevelEntranceID.NONE, dimension);
+                // Close mod options menu before TPing out
+                Courier.UI.ModOptionScreen?.Close(false);
+
+                Manager<AudioManager>.Instance.StopMusic();
+                Manager<LevelManager>.Instance.LoadLevel(levelLoadingInfo);
+                return true;
+            }
+            Console.WriteLine("Teleport Location set to an invalid value");
+            return false;
+        }
+    }
 }

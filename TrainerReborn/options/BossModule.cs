@@ -9,7 +9,7 @@ using System.Text;
 
 namespace TrainerReborn.options
 {
-    public class BossModule : CourierModule
+    public class EightBitModule : CourierModule
     {
 
         public const string BOSS_OPTIONS_LOC_ID = "TRAINER_REBORN_BOSS_OPTIONS_TEXT";
