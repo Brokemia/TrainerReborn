@@ -171,6 +171,8 @@ namespace TrainerReborn
 
         public bool restoreBlocks = false;
 
+        public bool startSkylandsOnManfred = true;
+
         public override void Load()
         {
             On.InGameHud.OnGUI += InGameHud_OnGUI;
@@ -269,8 +271,13 @@ namespace TrainerReborn
             {
                 Dicts.InitLevelDict();
             }
-        }
 
+            // Allow player to do beginning Skylands shmup if they travel by talking to Manfred in Glacial
+            On.GoToSkylandsCutscene.OnChoiceDone += StartSkylandsOnManfred;
+            // Any time Skylands is initialized, decide if player should start in the shmup section
+            On.ElementalSkylandsLevelInitializer.OnBeforeInitDone += RideManfredOnInit;
+
+        }        
 
         private void PlayerController_ReceiveHit1(On.PlayerController.orig_ReceiveHit orig, PlayerController self, HitData hitData)
         {
@@ -645,12 +652,10 @@ namespace TrainerReborn
                 Courier.UI.ModOptionScreen?.Close(false);
                 Manager<AudioManager>.Instance.StopMusic();                            
 
-                // If Skylands is destination, don't start on Manfred and TP normally
-                // TODO: AFter you TP to ES, you won't be able to do the first Manfred shmup section unless
-                //   you restart the game.
+                // If Skylands is destination, don't start on Manfred and TP normally                
                 if (level.Equals("elementalskylands", StringComparison.InvariantCultureIgnoreCase))
                 {
-                    On.ElementalSkylandsLevelInitializer.OnBeforeInitDone += StartSkylandsOffManfred;
+                    startSkylandsOnManfred = false;                    
                 }                 
 
                 Manager<LevelManager>.Instance.LoadLevel(levelLoadingInfo);                             
@@ -660,11 +665,17 @@ namespace TrainerReborn
             return false;
         }
 
-        private void StartSkylandsOffManfred(On.ElementalSkylandsLevelInitializer.orig_OnBeforeInitDone orig, ElementalSkylandsLevelInitializer self)
+        private void RideManfredOnInit(On.ElementalSkylandsLevelInitializer.orig_OnBeforeInitDone orig, ElementalSkylandsLevelInitializer self)
         {
-            self.startOnManfred = false;
+            self.startOnManfred = startSkylandsOnManfred;         
             orig(self);
-        }      
+        }
+
+        private void StartSkylandsOnManfred(On.GoToSkylandsCutscene.orig_OnChoiceDone orig, GoToSkylandsCutscene self, DialogChoice choice)
+        {
+            startSkylandsOnManfred = true;
+            orig(self, choice);
+        }
 
         void OnFullReloadButton()
         {
